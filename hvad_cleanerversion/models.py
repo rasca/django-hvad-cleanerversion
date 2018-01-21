@@ -22,34 +22,58 @@ class TranslatableVersionableModel(TranslatableModel, Versionable):
     objects = TranslatableVersionManager()
     _base_manager = VersionManager()
 
-
-    def clone_with_translations(self, forced_version_date=None):
-        new_instance = self.clone(forced_version_date)
-        for translation in new_instance.translations.all():
-            translation.pk = None
-            translation.id = None
-            translation.master = self
-            translation.save()
-        return new_instance
-
     class Meta:
         abstract = True
 
 
-class WithVersionedRelationsMixin(object):
+def get_versioned_relation(instance, relation, as_of):
+    """
+    Gets a versioned relation with fallbacks
 
-    def get_versioned_relation(self, relation, as_of):
-        # get the model from the relation
-        field = self._meta.get_field(relation)
-        related_model = field.related_model
-        related_id = getattr(self, '%s_id' % field.name)
+    Executes an extra query. Works for translatable and non translatable
+    models.
+    """
+    # get the model from the relation
+    field = instance._meta.get_field(relation)
+    related_model = field.related_model
+    related_id = getattr(instance, '%s_id' % field.name)
 
-        if issubclass(related_model, TranslatableModel): # if it's translatable
-            # return the as_of with fallbacks
-            versioned = related_model.objects.as_of(as_of).get(identity=related_id)
-            fallback = related_model.objects.language().fallbacks().get(pk=versioned.pk)
-            return related_model.objects.adjust_version_as_of(fallback, as_of)
-        else: # if it's no translatable
-            # return the as_of
-            return field.related_model.objects.as_of(as_of).get(identity=related_id)
+    if issubclass(related_model, TranslatableModel): # if it's translatable
+        # return the as_of with fallbacks
+        versioned = related_model.objects.as_of(as_of).get(identity=related_id)
+        fallback = related_model.objects.language().fallbacks().get(pk=versioned.pk)
+        return related_model.objects.adjust_version_as_of(fallback, as_of)
+    else: # if it's no translatable
+        # return the as_of
+        return field.related_model.objects.as_of(as_of).get(identity=related_id)
 
+def filter_versioned_relation(instance, relation):
+    """
+    Gets the related models with fallbacks
+    """
+    # get the model from the relation
+    field = instance._meta.get_field(relation)
+    related_model = field.related_model
+    qs = getattr(instance, relation)
+
+    if issubclass(related_model, TranslatableModel): # if it's translatable
+        # return the as_of with fallbacks
+        return qs.language().fallbacks().filter(version_end_date=instance.version_end_date)
+    else: # if it's no translatable
+        # return the as_of
+        return qs.filter(version_end_date=instance.version_end_date)
+
+
+def clone_with_translations(instance, forced_version_date=None):
+    """
+    Clones the given instance and it's relations
+
+    Expects a TranslatableModel
+    """
+    new_instance = instance.clone(forced_version_date)
+    for translation in new_instance.translations.all():
+        translation.pk = None
+        translation.id = None
+        translation.master = instance
+        translation.save()
+    return new_instance
