@@ -9,6 +9,12 @@ USE_TZ = True
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh"
 
+LANGUAGES = (
+    ('es', 'es'),
+    ('en', 'en'),
+    ('fr', 'fr'),
+)
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
