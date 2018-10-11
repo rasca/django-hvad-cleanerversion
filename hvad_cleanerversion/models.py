@@ -20,10 +20,11 @@ class TranslatableVersionManager(TranslationManager, VersionManager):
 
 class TranslatableVersionableModel(TranslatableModel, Versionable):
     objects = TranslatableVersionManager()
-    _base_manager = VersionManager()
+    version_manager = VersionManager()
 
     class Meta:
         abstract = True
+        base_manager_name = 'version_manager'
 
 
 def get_versioned_relation(instance, relation, as_of):
